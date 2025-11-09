@@ -9,14 +9,14 @@ Aplikasi Rapor Digital **THE RADIG V2.0.1** adalah solusi perangkat lunak **GRAT
 Aplikasi ini hadir dengan berbagai fitur unggulan untuk menunjang efisiensi administrasi sekolah:
 
 * **Gratis Sepenuhnya:** Tidak ada biaya lisensi. Dapat digunakan oleh semua sekolah, khususnya SMP/MTs.
-* **Aplikasi Offline:** Bekerja tanpa koneksi internet, menjamin kecepatan dan keamanan data.
+* **Aplikasi Offline:** aplikasi bisa di install di XAMPP atau server lokal atau di deploy di hosting
 * **Mandiri:** Sekolah dapat mengelola dan mencetak rapor kapan saja tanpa bergantung pada server pusat atau pihak ketiga.
-* **Sesuai Kurikulum Terbaru:** Dirancang untuk mengakomodasi struktur kurikulum yang berlaku, termasuk integrasi elemen P5 (Projek Penguatan Profil Pelajar Pancasila).
+* **Sesuai Panduan Kurikulum Terbaru:** Dirancang untuk mengakomodasi struktur kurikulum yang berlaku, termasuk integrasi 8 Dimensi Profil Lulusan.
 * **Desain Rapor SMP:** Menghasilkan format rapor yang sesuai dengan ketentuan dan standar rapor SMP.
 * **Multi-User (Kepala Sekolah, Guru, Tata Usaha):** Mendukung beberapa peran pengguna dengan hak akses yang berbeda.
 * **Otomatisasi Perhitungan:** Perhitungan nilai dan predikat dilakukan secara otomatis berdasarkan kriteria yang dimasukkan.
 * **Cetak Massal (Bulk Print):** Memungkinkan pencetakan semua rapor dalam sekali proses.
-* **Support P5:** Fitur khusus untuk mengelola dan mencetak nilai Projek Penguatan Profil Pelajar Pancasila.
+* **Support kokurikuler:** Fitur khusus untuk mengelola kokurikuler dengan berbagai pendekatan (7KAIH, Lintas mapel, atau khas sekolah)
 * **Kemudahan *Export* dan *Import*:** Data dapat dengan mudah di-*export* ke format lain dan di-*import* kembali.
 
 ## 🛠️ Persyaratan Sistem
@@ -32,11 +32,11 @@ Untuk menjalankan aplikasi THE RADIG V2.0.1, pastikan perangkat Anda memenuhi pe
 
 ### 1. Unduh Aplikasi
 * Kunjungi laman resmi unduhan: [https://bigsmpkabmalang.com/unduhrapor/](https://bigsmpkabmalang.com/unduhrapor/) 
-* Unduh file instalasi terbaru (*installer*).
+* Unduh file aplikasi lengkap dengan server lokal uniserver.
 
 ### 2. Instalasi
-* Jalankan file *installer* yang telah diunduh.
-* Ikuti instruksi yang muncul pada layar instalasi hingga selesai.
+* ekstrak file yang di unduh.
+* jalankan UniController.exe -> jalankan mysql dan apache server lokal
 * **Penting:** Pastikan semua *driver* pendukung telah terinstal dengan benar (aplikasi biasanya bersifat *portable* atau berbasis *database* lokal).
 
 ### 3. Konfigurasi Awal
