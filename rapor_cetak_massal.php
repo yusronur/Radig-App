@@ -348,12 +348,7 @@ foreach ($ids as $id_siswa) {
             $rapor_pdf = mysqli_fetch_assoc(mysqli_stmt_get_result($q_rapor)); // [MODIFIKASI] ganti nama variabel
             $id_rapor = $rapor_pdf['id_rapor'] ?? 0; // [MODIFIKASI] ganti nama variabel
             
-            // [PERBAIKAN] Path include dikembalikan sesuai struktur folder Anda.
-            // Pastikan file ini ada di 'parts/rapor_pdf_body.php'
-            // Jika file ini ada di root, ubah 'parts/rapor_pdf_body.php' menjadi 'rapor_pdf_body.php'
-            
-            // Berdasarkan file yang Anda upload, sepertinya file ini ada di root
-            include 'rapor_pdf_body.php';
+            include 'parts/rapor_pdf_body.php';
             
             break;
     }
@@ -405,4 +400,5 @@ $dompdf->render();
 $filename = "Rapor Massal - " . ucfirst($tipe_cetak) . " - " . date('Y-m-d') . ".pdf";
 $dompdf->stream($filename, ["Attachment" => 0]);
 exit();
+
 ?>
