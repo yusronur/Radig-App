@@ -46,7 +46,7 @@ Untuk menjalankan aplikasi THE RADIG V2.0.1, pastikan perangkat Anda memenuhi pe
 
 ### 4. Pengisian Nilai
 * Guru mata pelajaran dapat memasukkan nilai harian, nilai akhir, serta deskripsi capaian kompetensi.
-* Input nilai P5 (Projek Penguatan Profil Pelajar Pancasila) pada modul yang tersedia.
+* Input nilai kokurikuler pada modul yang tersedia.
 
 ### 5. Pengolahan dan Pencetakan
 * Aplikasi akan mengolah nilai secara otomatis.
