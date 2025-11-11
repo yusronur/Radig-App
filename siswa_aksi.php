@@ -28,9 +28,24 @@ if ($aksi == 'tambah') {
     $nama_lengkap = $_POST['nama_lengkap'];
     $username = $_POST['username'];
     $password = password_hash($nisn, PASSWORD_DEFAULT);
-    $query = "INSERT INTO siswa (nisn, nis, nama_lengkap, username, password, id_kelas) VALUES (?, ?, ?, ?, ?, ?)";
+    
+    // [MODIFIKASI] Ambil id_wali_kelas saat tambah siswa baru
+    $id_wali_kelas_baru = NULL;
+    if ($id_kelas !== NULL) {
+        try {
+            $stmt_kelas = mysqli_prepare($koneksi, "SELECT id_wali_kelas FROM kelas WHERE id_kelas = ?");
+            mysqli_stmt_bind_param($stmt_kelas, "i", $id_kelas);
+            mysqli_stmt_execute($stmt_kelas);
+            $result_kelas = mysqli_stmt_get_result($stmt_kelas);
+            if ($data_kelas = mysqli_fetch_assoc($result_kelas)) {
+                $id_wali_kelas_baru = $data_kelas['id_wali_kelas'];
+            }
+        } catch (Exception $e) { /* Biarkan NULL jika gagal */ }
+    }
+    
+    $query = "INSERT INTO siswa (nisn, nis, nama_lengkap, username, password, id_kelas, id_guru_wali) VALUES (?, ?, ?, ?, ?, ?, ?)";
     $stmt = mysqli_prepare($koneksi, $query);
-    mysqli_stmt_bind_param($stmt, "sssssi", $nisn, $nis, $nama_lengkap, $username, $password, $id_kelas);
+    mysqli_stmt_bind_param($stmt, "sssssii", $nisn, $nis, $nama_lengkap, $username, $password, $id_kelas, $id_wali_kelas_baru);
     
     if (mysqli_stmt_execute($stmt)) {
         $_SESSION['pesan'] = "Siswa baru berhasil ditambahkan.";
@@ -41,73 +56,93 @@ if ($aksi == 'tambah') {
     exit();
 
 //======================================================================
-// --- AKSI UPDATE SISWA (MANUAL) ---
+// --- AKSI UPDATE SISWA (MANUAL) --- (KODE INI TELAH DIPERBAIKI)
 //======================================================================
 } elseif ($aksi == 'update') {
-    // Logika update siswa Anda (tidak diubah)
-    $id_siswa = (int)$_POST['id_siswa'];
-    $id_kelas_sebelumnya = (int)$_POST['id_kelas_sebelumnya']; // Anda tidak mengirim ini dari form baru saya, jadi ini mungkin perlu penyesuaian
     
-    // [MODIFIKASI] Kita ambil id_kelas_sebelumnya dari database jika tidak ada di POST
-    if(empty($id_kelas_sebelumnya)) {
-         $stmt_cek = mysqli_prepare($koneksi, "SELECT id_kelas FROM siswa WHERE id_siswa = ?");
-         mysqli_stmt_bind_param($stmt_cek, "i", $id_siswa);
-         mysqli_stmt_execute($stmt_cek);
-         $id_kelas_sebelumnya = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_cek))['id_kelas'] ?? 0;
-    }
-
-    $id_kelas_aktif = empty($_POST['id_kelas_aktif']) ? NULL : (int)$_POST['id_kelas_aktif'];
-
-    // Data dari tab Akun & Akademik
+    // Ambil data yang BENAR-BENAR DIKIRIM oleh siswa_edit.php
+    $id_siswa = (int)$_POST['id_siswa'];
     $nama_lengkap = $_POST['nama_lengkap'];
     $nisn = $_POST['nisn'];
     $nis = $_POST['nis'];
     $username = $_POST['username'];
-    $status_siswa = $_POST['status_siswa']; 
+    $password_baru = $_POST['password']; // Bisa kosong
+    $id_kelas_baru = empty($_POST['id_kelas']) ? NULL : (int)$_POST['id_kelas'];
 
-    // Data dari tab Biodata Diri
-    $jk = $_POST['jk']; 
-    $tempat_lahir = $_POST['tempat_lahir'];
-    $tanggal_lahir = empty($_POST['tanggal_lahir']) ? NULL : $_POST['tanggal_lahir'];
-    $nik = $_POST['nik'];
-    $agama = $_POST['agama'];
-    $alamat = $_POST['alamat'];
-    $sekolah_asal = $_POST['sekolah_asal'];
-    $diterima_tanggal = empty($_POST['diterima_tanggal']) ? NULL : $_POST['diterima_tanggal'];
-    $anak_ke = $_POST['anak_ke'];
-    $status_keluarga = $_POST['status_keluarga'];
-    $telepon_siswa = $_POST['telepon_siswa'];
-
-    // Data dari tab Orang Tua / Wali
-    $nama_ayah = $_POST['nama_ayah'];
-    $pekerjaan_ayah = $_POST['pekerjaan_ayah'];
-    $nama_ibu = $_POST['nama_ibu'];
-    $pekerjaan_ibu = $_POST['pekerjaan_ibu'];
-    $nama_wali = $_POST['nama_wali'];
-    $alamat_wali = $_POST['alamat_wali'];
-    $telepon_wali = $_POST['telepon_wali'];
-    $pekerjaan_wali = $_POST['pekerjaan_wali'];
-
-    // Query Update Anda
-    $query_update = "UPDATE siswa SET 
-        nama_lengkap=?, nisn=?, nis=?, username=?, status_siswa=?, id_kelas=?, jenis_kelamin=?, 
-        tempat_lahir=?, tanggal_lahir=?, nik=?, agama=?, alamat=?, sekolah_asal=?, diterima_tanggal=?, anak_ke=?, status_dalam_keluarga=?, telepon_siswa=?, 
-        nama_ayah=?, pekerjaan_ayah=?, nama_ibu=?, pekerjaan_ibu=?, nama_wali=?, alamat_wali=?, telepon_wali=?, pekerjaan_wali=? 
-        WHERE id_siswa=?";
-    
-    $stmt = mysqli_prepare($koneksi, $query_update);
-    mysqli_stmt_bind_param($stmt, "sssssississsssisssssssssssi", 
-        $nama_lengkap, $nisn, $nis, $username, $status_siswa, $id_kelas_aktif, $jk,
-        $tempat_lahir, $tanggal_lahir, $nik, $agama, $alamat, $sekolah_asal, $diterima_tanggal, $anak_ke, $status_keluarga, $telepon_siswa, 
-        $nama_ayah, $pekerjaan_ayah, $nama_ibu, $pekerjaan_ibu, $nama_wali, $alamat_wali, $telepon_wali, $pekerjaan_wali, 
-        $id_siswa);
-
-    if (mysqli_stmt_execute($stmt)) {
-        $_SESSION['pesan'] = "Data siswa berhasil diperbarui.";
-    } else {
-        $_SESSION['pesan_error'] = "Gagal memperbarui data. Pastikan NISN dan Username unik.";
+    // [MODIFIKASI PENTING]
+    // Kita juga perlu mengupdate id_guru_wali berdasarkan id_kelas yang baru
+    // Logika ini diambil dari aksi 'import_lengkap' Anda
+    $id_wali_kelas_baru = NULL;
+    if ($id_kelas_baru !== NULL) {
+        try {
+            $stmt_kelas = mysqli_prepare($koneksi, "SELECT id_wali_kelas FROM kelas WHERE id_kelas = ?");
+            mysqli_stmt_bind_param($stmt_kelas, "i", $id_kelas_baru);
+            mysqli_stmt_execute($stmt_kelas);
+            $result_kelas = mysqli_stmt_get_result($stmt_kelas);
+            if ($data_kelas = mysqli_fetch_assoc($result_kelas)) {
+                $id_wali_kelas_baru = $data_kelas['id_wali_kelas']; // Bisa jadi NULL jika kelas tsb blm punya wali
+            }
+        } catch (Exception $e) {
+            // Biarkan id_wali_kelas_baru tetap NULL jika query kelas gagal
+        }
     }
-    header("location: siswa_edit.php?id=$id_siswa&id_kelas=$id_kelas_sebelumnya");
+
+    // Siapkan query berdasarkan apakah password diubah atau tidak
+    if (!empty($password_baru)) {
+        // --- Query JIKA PASSWORD BARU DIISI ---
+        $hashed_password = password_hash($password_baru, PASSWORD_DEFAULT);
+        $query_update = "UPDATE siswa SET 
+            nama_lengkap = ?, 
+            nisn = ?, 
+            nis = ?, 
+            username = ?, 
+            password = ?, 
+            id_kelas = ?, 
+            id_guru_wali = ? 
+            WHERE id_siswa = ?";
+        
+        $stmt = mysqli_prepare($koneksi, $query_update);
+        // Tipe data: string, string, string, string, string, integer, integer, integer
+        mysqli_stmt_bind_param($stmt, "sssssiii", 
+            $nama_lengkap, $nisn, $nis, $username, $hashed_password, 
+            $id_kelas_baru, $id_wali_kelas_baru, $id_siswa);
+
+    } else {
+        // --- Query JIKA PASSWORD DIKOSONGKAN ---
+        $query_update = "UPDATE siswa SET 
+            nama_lengkap = ?, 
+            nisn = ?, 
+            nis = ?, 
+            username = ?, 
+            id_kelas = ?, 
+            id_guru_wali = ? 
+            WHERE id_siswa = ?";
+        
+        $stmt = mysqli_prepare($koneksi, $query_update);
+        // Tipe data: string, string, string, string, integer, integer, integer
+        mysqli_stmt_bind_param($stmt, "ssssiii", 
+            $nama_lengkap, $nisn, $nis, $username, 
+            $id_kelas_baru, $id_wali_kelas_baru, $id_siswa);
+    }
+
+    // Eksekusi query
+    try {
+        if (mysqli_stmt_execute($stmt)) {
+            $_SESSION['pesan'] = "Data siswa $nama_lengkap berhasil diperbarui.";
+        } else {
+            $_SESSION['pesan_error'] = "Gagal memperbarui data. Pastikan NISN dan Username unik.";
+        }
+    } catch (mysqli_sql_exception $e) {
+         // Tangkap error duplikat
+         if ($e->getCode() == 1062) { // Error code for duplicate entry
+            $_SESSION['pesan_error'] = "Gagal: Terdapat duplikasi data. Pastikan NISN dan Username unik.";
+         } else {
+            $_SESSION['pesan_error'] = "Gagal: " . str_replace("'", "", $e->getMessage());
+         }
+    }
+    
+    // Redirect kembali ke halaman daftar pengguna (sesuai tombol 'Kembali' di form siswa_edit.php)
+    header("location: pengguna_tampil.php");
     exit();
 
 //======================================================================
@@ -320,7 +355,9 @@ if ($aksi == 'tambah') {
 elseif ($aksi == 'reset_password') {
     // Logika reset password Anda (tidak diubah)
     $id_siswa = (int)$_GET['id'];
+    // [MODIFIKASI] Ambil id_kelas dari form
     $id_kelas = (int)$_GET['id_kelas'];
+    
     $q_nisn = mysqli_prepare($koneksi, "SELECT nisn FROM siswa WHERE id_siswa = ?");
     mysqli_stmt_bind_param($q_nisn, "i", $id_siswa);
     mysqli_stmt_execute($q_nisn);
@@ -337,6 +374,7 @@ elseif ($aksi == 'reset_password') {
     } else {
         $_SESSION['pesan_error'] = "Siswa tidak ditemukan untuk reset password.";
     }
+    // [MODIFIKASI] Redirect kembali ke halaman edit, bukan pengguna_tampil
     header("location: siswa_edit.php?id=$id_siswa&id_kelas=$id_kelas");
     exit();
 }
