@@ -10,8 +10,11 @@ if ($_SESSION['role'] != 'admin') {
 // --- LANGKAH 1: DETEKSI OTOMATIS JENJANG SEKOLAH ---
 $query_sekolah = mysqli_query($koneksi, "SELECT jenjang FROM sekolah WHERE id_sekolah = 1");
 $sekolah = mysqli_fetch_assoc($query_sekolah);
-$jenjang_sekolah = $sekolah['jenjang'] ?? 'SMP'; // Default ke SMP jika belum diatur
+$jenjang_sekolah = $sekolah['jenjang'] ?? 'SMP'; 
 
+// [MODIFIKASI] Kita ingin halaman ini SELALU menampilkan Mapel, baik untuk SD maupun SMP.
+// Jadi kita buat variabel penanda agar logika di bawah menganggap ini mode 'Mapel'
+$tampilkan_mode_mapel = true; 
 ?>
 
 <style>
@@ -24,7 +27,7 @@ $jenjang_sekolah = $sekolah['jenjang'] ?? 'SMP'; // Default ke SMP jika belum di
     .page-header .btn { box-shadow: 0 4px 15px rgba(0,0,0,0.2); font-weight: 600; }
     #search-input { max-width: 400px; }
 
-    /* Style untuk Kartu Mata Pelajaran (SMP) */
+    /* Style untuk Kartu Mata Pelajaran */
     .mapel-card {
         transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
         border: 0; border-radius: 0.75rem;
@@ -46,171 +49,101 @@ $jenjang_sekolah = $sekolah['jenjang'] ?? 'SMP'; // Default ke SMP jika belum di
     .mapel-card .list-group-item { border-color: rgba(0,0,0,0.08); }
     .mapel-card .guru-list { padding-left: 1.2rem; font-size: 0.9rem; }
     .mapel-card .guru-list li { margin-bottom: 0.25rem; }
-
-    /* Style untuk Kartu Kelas (SD) */
-    .class-card {
-        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-        border: 0; border-radius: 0.75rem;
-    }
-    .class-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 12px 28px rgba(0,0,0,0.12);
-    }
-    .class-card-header {
-        border-top-left-radius: 0.75rem; border-top-right-radius: 0.75rem;
-        background-color: #6c757d; color: white; padding: 1rem 1.5rem;
-    }
-    .class-card-header h5 { font-weight: 600; margin: 0; }
-    .wali-kelas-info img {
-        width: 60px; height: 60px; border-radius: 50%;
-        object-fit: cover; border: 3px solid white;
-    }
-    .stats-item { text-align: center; }
-    .stats-item .stat-number { font-size: 1.5rem; font-weight: 700; color: var(--primary-color); }
-    .stats-item .stat-label { font-size: 0.8rem; color: #6c757d; }
 </style>
 
 <div class="container-fluid">
     <div class="page-header text-white mb-4 shadow">
         <div class="d-sm-flex justify-content-between align-items-center">
             <div>
-                <h1 class="mb-1">Manajemen <?php echo ($jenjang_sekolah == 'SMP') ? 'Mata Pelajaran' : 'Kelas'; ?></h1>
-                <p class="lead mb-0 opacity-75">Kelola daftar <?php echo ($jenjang_sekolah == 'SMP') ? 'mata pelajaran dan tujuan pembelajarannya' : 'pembelajaran untuk setiap kelas'; ?>.</p>
+                <!-- [MODIFIKASI] Judul selalu Manajemen Mata Pelajaran -->
+                <h1 class="mb-1">Manajemen Mata Pelajaran</h1>
+                <p class="lead mb-0 opacity-75">Kelola daftar mata pelajaran (Master Data) untuk sekolah.</p>
             </div>
-            <?php if ($jenjang_sekolah == 'SMP'): ?>
-                <a href="mapel_tambah.php" class="btn btn-outline-light mt-3 mt-sm-0"><i class="bi bi-plus-circle-fill me-2"></i>Tambah Mata Pelajaran</a>
-            <?php else: ?>
-                <a href="kelas_tambah.php" class="btn btn-outline-light mt-3 mt-sm-0"><i class="bi bi-plus-circle-fill me-2"></i>Tambah Kelas</a>
-            <?php endif; ?>
+            <!-- [MODIFIKASI] Tombol Tambah Mapel Selalu Muncul -->
+            <a href="mapel_tambah.php" class="btn btn-outline-light mt-3 mt-sm-0">
+                <i class="bi bi-plus-circle-fill me-2"></i>Tambah Mata Pelajaran
+            </a>
         </div>
     </div>
 
     <div class="mb-4 d-flex justify-content-between">
         <div class="input-group" style="max-width: 400px;">
             <span class="input-group-text"><i class="bi bi-search"></i></span>
-            <input type="text" id="search-input" class="form-control" placeholder="Cari <?php echo ($jenjang_sekolah == 'SMP') ? 'nama mata pelajaran atau kode...' : 'nama kelas atau wali kelas...'; ?>">
+            <input type="text" id="search-input" class="form-control" placeholder="Cari nama mata pelajaran atau kode...">
         </div>
         
-        <?php if ($jenjang_sekolah == 'SMP'): ?>
         <div>
             <a href="mapel_urutkan.php" class="btn btn-primary">
                 <i class="bi bi-list-ol me-2"></i>Atur Urutan Mapel
             </a>
         </div>
-        <?php endif; ?>
     </div>
 
 
     <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4" id="card-list">
-        <?php if ($jenjang_sekolah == 'SMP'): ?>
-            <?php
-            $query = mysqli_query($koneksi, "
-                SELECT 
-                    mp.id_mapel, mp.nama_mapel, mp.kode_mapel,
-                    (SELECT COUNT(tp.id_tp) FROM tujuan_pembelajaran tp WHERE tp.id_mapel = mp.id_mapel) as jumlah_tp,
-                    (SELECT COUNT(DISTINCT gm.id_guru) FROM guru_mengajar gm WHERE gm.id_mapel = mp.id_mapel) as jumlah_guru,
-                    (SELECT GROUP_CONCAT(DISTINCT g.nama_guru SEPARATOR '</li><li>') FROM guru_mengajar gm JOIN guru g ON gm.id_guru = g.id_guru WHERE gm.id_mapel = mp.id_mapel LIMIT 3) as guru_pengampu
-                FROM mata_pelajaran mp ORDER BY mp.urutan ASC, mp.nama_mapel ASC
-            ");
-            
-            $colors = ['#0d6efd', '#6f42c1', '#d63384', '#fd7e14', '#198754', '#0dcaf0', '#6610f2'];
-            $color_index = 0;
+        <?php 
+        // [MODIFIKASI] Query Mata Pelajaran dijalankan untuk SEMUA jenjang
+        $query = mysqli_query($koneksi, "
+            SELECT 
+                mp.id_mapel, mp.nama_mapel, mp.kode_mapel,
+                (SELECT COUNT(tp.id_tp) FROM tujuan_pembelajaran tp WHERE tp.id_mapel = mp.id_mapel) as jumlah_tp,
+                (SELECT COUNT(DISTINCT gm.id_guru) FROM guru_mengajar gm WHERE gm.id_mapel = mp.id_mapel) as jumlah_guru,
+                (SELECT GROUP_CONCAT(DISTINCT g.nama_guru SEPARATOR '</li><li>') FROM guru_mengajar gm JOIN guru g ON gm.id_guru = g.id_guru WHERE gm.id_mapel = mp.id_mapel LIMIT 3) as guru_pengampu
+            FROM mata_pelajaran mp ORDER BY mp.urutan ASC, mp.nama_mapel ASC
+        ");
+        
+        $colors = ['#0d6efd', '#6f42c1', '#d63384', '#fd7e14', '#198754', '#0dcaf0', '#6610f2'];
+        $color_index = 0;
 
-            if (mysqli_num_rows($query) > 0) {
-                while ($data = mysqli_fetch_assoc($query)) {
-                    $bg_color = $colors[$color_index % count($colors)];
-                    $color_index++;
-            ?>
-                <div class="col searchable-card">
-                    <div class="card shadow-sm mapel-card h-100">
-                        <div class="mapel-card-header" style="background-color: <?php echo $bg_color; ?>;">
-                            <i class="bi bi-book-half mapel-icon"></i>
-                            <h4 class="searchable-name"><?php echo htmlspecialchars($data['nama_mapel']); ?></h4>
-                            <p class="searchable-code">Kode: <?php echo htmlspecialchars($data['kode_mapel']); ?></p>
+        if (mysqli_num_rows($query) > 0) {
+            while ($data = mysqli_fetch_assoc($query)) {
+                $bg_color = $colors[$color_index % count($colors)];
+                $color_index++;
+        ?>
+            <div class="col searchable-card">
+                <div class="card shadow-sm mapel-card h-100">
+                    <div class="mapel-card-header" style="background-color: <?php echo $bg_color; ?>;">
+                        <i class="bi bi-book-half mapel-icon"></i>
+                        <h4 class="searchable-name"><?php echo htmlspecialchars($data['nama_mapel']); ?></h4>
+                        <p class="searchable-code">Kode: <?php echo htmlspecialchars($data['kode_mapel']); ?></p>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-around text-center mb-3">
+                            <div><h4 class="mb-0 fw-bold"><?php echo $data['jumlah_guru']; ?></h4><small class="text-muted">Guru Pengampu</small></div>
+                            <div><h4 class="mb-0 fw-bold"><?php echo $data['jumlah_tp']; ?></h4><small class="text-muted">Tujuan Pembelajaran</small></div>
                         </div>
-                        <div class="card-body">
-                            <div class="d-flex justify-content-around text-center mb-3">
-                                <div><h4 class="mb-0 fw-bold"><?php echo $data['jumlah_guru']; ?></h4><small class="text-muted">Guru Pengampu</small></div>
-                                <div><h4 class="mb-0 fw-bold"><?php echo $data['jumlah_tp']; ?></h4><small class="text-muted">Tujuan Pembelajaran</small></div>
-                            </div>
-                            <div class="list-group list-group-flush"><div class="list-group-item">
-                                <h6 class="mb-2 small text-muted">Guru Pengampu:</h6>
-                                <ol class="guru-list mb-0 searchable-guru">
-                                    <?php if (!empty($data['guru_pengampu'])) {
-                                        echo '<li>' . $data['guru_pengampu'] . '</li>'; 
-                                        if ($data['jumlah_guru'] > 3) { echo '<li class="text-muted small">...' . ($data['jumlah_guru'] - 3) . ' guru lainnya</li>'; }
-                                    } else { echo '<li class="text-danger" style="list-style: none;">Belum ada guru</li>'; } ?>
-                                </ol>
-                            </div></div>
-                        </div>
-                        
-                        <!-- **** BLOK TOMBOL YANG DIMODIFIKASI **** -->
-                        <div class="card-footer bg-white">
-                            <a href="tp_tampil.php?id_mapel=<?php echo $data['id_mapel']; ?>" class="btn btn-primary d-block w-100 mb-2">
-                                <i class="bi bi-card-list me-2"></i>Kelola Tujuan Pembelajaran
+                        <div class="list-group list-group-flush"><div class="list-group-item">
+                            <h6 class="mb-2 small text-muted">Guru Pengampu:</h6>
+                            <ol class="guru-list mb-0 searchable-guru">
+                                <?php if (!empty($data['guru_pengampu'])) {
+                                    echo '<li>' . $data['guru_pengampu'] . '</li>'; 
+                                    if ($data['jumlah_guru'] > 3) { echo '<li class="text-muted small">...' . ($data['jumlah_guru'] - 3) . ' guru lainnya</li>'; }
+                                } else { echo '<li class="text-danger" style="list-style: none;">Belum ada guru</li>'; } ?>
+                            </ol>
+                        </div></div>
+                    </div>
+                    
+                    <div class="card-footer bg-white">
+                        <a href="tp_tampil.php?id_mapel=<?php echo $data['id_mapel']; ?>" class="btn btn-primary d-block w-100 mb-2">
+                            <i class="bi bi-card-list me-2"></i>Kelola Tujuan Pembelajaran
+                        </a>
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="mapel_edit.php?id=<?php echo $data['id_mapel']; ?>" class="btn btn-outline-secondary btn-sm">
+                                <i class="bi bi-pencil-fill me-1"></i> Edit
                             </a>
-                            <div class="d-flex justify-content-end gap-2">
-                                <a href="mapel_edit.php?id=<?php echo $data['id_mapel']; ?>" class="btn btn-outline-secondary btn-sm">
-                                    <i class="bi bi-pencil-fill me-1"></i> Edit
-                                </a>
-                                <!-- TOMBOL HAPUS BARU -->
-                                <a href="mapel_aksi.php?aksi=hapus&id=<?php echo $data['id_mapel']; ?>" class="btn btn-outline-danger btn-sm btn-hapus">
-                                    <i class="bi bi-trash-fill me-1"></i> Hapus
-                                </a>
-                            </div>
-                        </div>
-                        <!-- **** AKHIR BLOK TOMBOL **** -->
-
-                    </div>
-                </div>
-            <?php } } else { /* ... pesan kosong ... */ } ?>
-
-        <?php else: // Bagian untuk SD (Jenjang selain SMP) ?>
-            <?php
-            $query = mysqli_query($koneksi, "
-                SELECT 
-                    k.id_kelas, k.nama_kelas, k.fase, g.nama_guru as nama_walas, g.foto_guru,
-                    (SELECT COUNT(s.id_siswa) FROM siswa s WHERE s.id_kelas = k.id_kelas AND s.status_siswa = 'Aktif') as jumlah_siswa,
-                    (SELECT COUNT(DISTINCT tp.id_mapel) FROM tujuan_pembelajaran tp JOIN tp_kelas tk ON tp.id_tp = tk.id_tp WHERE tk.id_kelas = k.id_kelas) as jumlah_mapel,
-                    (SELECT COUNT(tk.id_tp_kelas) FROM tp_kelas tk WHERE tk.id_kelas = k.id_kelas) as jumlah_tp
-                FROM kelas k
-                LEFT JOIN guru g ON k.id_wali_kelas = g.id_guru
-                WHERE k.fase IN ('A', 'B', 'C')
-                ORDER BY k.nama_kelas ASC
-            ");
-            
-            if (mysqli_num_rows($query) > 0) {
-                while ($data = mysqli_fetch_assoc($query)) {
-                    $foto_walas = $data['foto_guru'] ?? null;
-                    $foto_path = 'uploads/guru_photos/' . $foto_walas;
-                    $foto_default = 'uploads/guruc.png';
-                    $gambar_tampil = (!empty($foto_walas) && file_exists($foto_path)) ? $foto_path : $foto_default;
-            ?>
-                <div class="col searchable-card">
-                    <div class="card shadow-sm class-card h-100">
-                        <div class="class-card-header">
-                            <h5 class="mb-0 searchable-name"><?php echo htmlspecialchars($data['nama_kelas']); ?> (Fase <?php echo htmlspecialchars($data['fase']); ?>)</h5>
-                        </div>
-                        <div class="card-body d-flex flex-column">
-                            <div class="text-center wali-kelas-info mt-2 searchable-guru">
-                                <img src="<?php echo htmlspecialchars($gambar_tampil); ?>" alt="Wali Kelas">
-                                <h6 class="mt-2 mb-0"><?php echo htmlspecialchars($data['nama_walas'] ?? 'Belum Diatur'); ?></h6>
-                                <small class="text-muted">Wali Kelas</small>
-                            </div>
-                            <hr>
-                            <div class="row my-2">
-                                <div class="col-4 stats-item"><div class="stat-number"><?php echo $data['jumlah_siswa']; ?></div><div class="stat-label">Siswa</div></div>
-                                <div class="col-4 stats-item"><div class="stat-number"><?php echo $data['jumlah_mapel']; ?></div><div class="stat-label">Mapel</div></div>
-                                <div class="col-4 stats-item"><div class="stat-number"><?php echo $data['jumlah_tp']; ?></div><div class="stat-label">Total TP</div></div>
-                            </div>
-                            <div class="mt-auto pt-3 d-grid">
-                                <a href="tp_kelas_tampil.php?id_kelas=<?php echo $data['id_kelas']; ?>" class="btn btn-primary"><i class="bi bi-gear-fill me-2"></i>Kelola Pembelajaran</a>
-                            </div>
+                            <a href="mapel_aksi.php?aksi=hapus&id=<?php echo $data['id_mapel']; ?>" class="btn btn-outline-danger btn-sm btn-hapus">
+                                <i class="bi bi-trash-fill me-1"></i> Hapus
+                            </a>
                         </div>
                     </div>
+
                 </div>
-            <?php } } else { /* ... pesan kosong ... */ } ?>
-        <?php endif; ?>
+            </div>
+        <?php } } else { ?>
+            <div class="col-12 text-center">
+                <p>Belum ada mata pelajaran.</p>
+            </div>
+        <?php } ?>
     </div>
 
     <div id="no-results" class="text-center py-5" style="display: none;">

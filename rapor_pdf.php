@@ -37,18 +37,18 @@ $tahun_ajaran_pdf = $d_ta_pdf['tahun_ajaran'];
 $semester_aktif_pdf = $pengaturan_pdf['semester_aktif'] ?? 1;
 $semester_text_pdf = ($semester_aktif_pdf == 1) ? '1 (Ganjil)' : '2 (Genap)';
 
-// [MODIFIKASI] Menggunakan tanggal rapor akhir semester
+// Menggunakan tanggal rapor akhir semester
 $tanggal_rapor_db_pdf = $pengaturan_pdf['tanggal_rapor'] ?? date("Y-m-d");
 $tanggal_rapor_pdf = date("d F Y", strtotime($tanggal_rapor_db_pdf));
 
 $q_sekolah_pdf = mysqli_query($koneksi, "SELECT * FROM sekolah WHERE id_sekolah = 1");
 $sekolah_pdf = mysqli_fetch_assoc($q_sekolah_pdf);
 
-// [MODIFIKASI] Mengambil Ukuran Kertas dan Skema Warna
+// Mengambil Ukuran Kertas dan Skema Warna
 $ukuran_kertas_pdf = $pengaturan_pdf['rapor_ukuran_kertas'] ?? 'A4'; // Default A4
 $skema_warna_pdf = $pengaturan_pdf['rapor_skema_warna'] ?? 'bw'; // Default Hitam Putih (bw)
 
-// [MODIFIKASI] Logika Skema Warna Hemat Tinta
+// Logika Skema Warna Hemat Tinta
 $theme_color_bg = '#444444'; // Latar (Header Tabel)
 $theme_color_text = '#FFFFFF'; // Teks (Header Tabel)
 $theme_color_kop = '#000000'; // Warna Kop (Nama Sekolah)
@@ -86,7 +86,6 @@ switch ($skema_warna_pdf) {
         $theme_color_kop = '#000000';
         break;
 }
-// --- Akhir Modifikasi Warna ---
 
 // --- PROSES GAMBAR BASE64 (STANDALONE) ---
 // Proses Watermark
@@ -139,7 +138,7 @@ if (mysqli_num_rows($siswa_pdf_result) == 0) {
 $siswa_pdf = mysqli_fetch_assoc($siswa_pdf_result);
 $id_kelas_siswa = $siswa_pdf['id_kelas'] ?? 0; 
 
-// [MODIFIKASI] Opsi tampilkan nilai fase A dihapus, default ke true (karena ini SMP/Fase D)
+// Opsi tampilkan nilai fase A dihapus, default ke true
 $show_nilai_column_pdf = true;
 
 $q_rapor = mysqli_prepare($koneksi, "SELECT * FROM rapor WHERE id_siswa = ? AND semester = ? AND id_tahun_ajaran = ? LIMIT 1");
@@ -149,21 +148,31 @@ $rapor_pdf = mysqli_fetch_assoc(mysqli_stmt_get_result($q_rapor));
 $id_rapor = $rapor_pdf['id_rapor'] ?? 0; 
 
 
-// --- LOGIKA FILTER MAPEL GABUNGAN (KELAS + AGAMA) ---
-$mapel_agama_map_pdf = [
-'Islam' => 2, 
-    'Kristen' => 13,
-    'Katolik' => 16, 
-    'Hindu' => 14,   
-    'Buddha' => 15   
-];
-$agama_siswa_pdf = $siswa_pdf['agama'] ?? ''; 
-$id_mapel_agama_siswa_pdf = $mapel_agama_map_pdf[$agama_siswa_pdf] ?? null;
-$semua_id_mapel_agama_string_pdf = implode(',', array_values($mapel_agama_map_pdf));
-if (empty($semua_id_mapel_agama_string_pdf)) {
-    $semua_id_mapel_agama_string_pdf = '0'; 
+// --- [LOGIKA BARU] FILTER MAPEL OTOMATIS ---
+// 1. Ambil semua mapel yang mengandung kata 'Agama' dari database
+$q_mapel_agama_all = mysqli_query($koneksi, "SELECT id_mapel, nama_mapel FROM mata_pelajaran WHERE nama_mapel LIKE '%Agama%'");
+$list_id_semua_agama = [];
+$id_mapel_agama_siswa_pdf = null;
+$agama_siswa_string = trim($siswa_pdf['agama'] ?? ''); // misal 'Islam'
+
+while ($row_agama = mysqli_fetch_assoc($q_mapel_agama_all)) {
+    $id_mapel_db = $row_agama['id_mapel'];
+    $nama_mapel_db = $row_agama['nama_mapel'];
+    
+    // Simpan ID ini sebagai 'ID mapel agama'
+    $list_id_semua_agama[] = $id_mapel_db;
+
+    // Cek apakah mapel ini cocok dengan agama siswa
+    // Logika: Jika agama siswa (misal 'Islam') ada di dalam nama mapel (misal 'Pendidikan Agama Islam')
+    if (!empty($agama_siswa_string) && stripos($nama_mapel_db, $agama_siswa_string) !== false) {
+        $id_mapel_agama_siswa_pdf = $id_mapel_db;
+    }
 }
 
+// Buat string ID untuk NOT IN (..., ...)
+$string_id_semua_agama = !empty($list_id_semua_agama) ? implode(',', $list_id_semua_agama) : '0';
+
+// Query Mapel yang diajarkan di kelas ini
 $query_mapel_string_pdf = "
     SELECT 
         mp.id_mapel, 
@@ -177,19 +186,24 @@ $query_mapel_string_pdf = "
         gm.id_kelas = $id_kelas_siswa 
         AND gm.id_tahun_ajaran = $id_tahun_ajaran_pdf
 ";
-$query_mapel_string_pdf .= " AND (";
-if ($id_mapel_agama_siswa_pdf) {
-    $query_mapel_string_pdf .= "(mp.id_mapel NOT IN ($semua_id_mapel_agama_string_pdf) OR mp.id_mapel = $id_mapel_agama_siswa_pdf)";
-} else {
-    $query_mapel_string_pdf .= "mp.id_mapel NOT IN ($semua_id_mapel_agama_string_pdf)";
-}
-$query_mapel_string_pdf .= ") "; 
+
+// Filter Pintar:
+// Ambil mapel JIKA:
+// 1. ID Mapel TERSEBUT BUKAN termasuk mapel agama (seperti Matematika, IPAS, dll)
+//    ATAU
+// 2. ID Mapel TERSEBUT ADALAH mapel agama milik siswa ini
+$query_mapel_string_pdf .= " AND (
+    mp.id_mapel NOT IN ($string_id_semua_agama) 
+    OR mp.id_mapel = " . ($id_mapel_agama_siswa_pdf ? $id_mapel_agama_siswa_pdf : '0') . "
+)";
+
 $query_mapel_string_pdf .= " 
     GROUP BY mp.id_mapel 
     ORDER BY mp.urutan ASC, mp.nama_mapel ASC
 ";
+
 $semua_mapel_query_pdf = mysqli_query($koneksi, $query_mapel_string_pdf);
-// --- AKHIR LOGIKA FILTER MAPEL ---
+// --- AKHIR LOGIKA FILTER OTOMATIS ---
 
 
 $daftar_mapel_rapor_pdf = [];
@@ -223,7 +237,7 @@ if ($semua_mapel_query_pdf) {
 
 // --- [LOGIKA PENGGABUNGAN SENI & PRAKARYA] ---
 $seni_mapel_names = ['Seni Musik', 'Seni Rupa', 'Seni Tari', 'Seni Teater']; 
-$prakarya_mapel_names = ['Prakarya']; // Asumsi dari DB Anda ID 9 adalah Prakarya
+$prakarya_mapel_names = ['Prakarya'];
 
 $seni_data = null;
 $prakarya_data = null;

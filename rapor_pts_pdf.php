@@ -116,18 +116,29 @@ if ($kehadiran = mysqli_fetch_assoc($result_kehadiran)) {
 mysqli_stmt_close($q_kehadiran);
 
 
-// --- Filter Mapel berdasarkan Agama (Sama seperti rapor akhir) ---
-$mapel_agama_map = [
-    'Islam' => 2,
-    'Kristen' => 13,
-    'Katolik' => 16,
-    'Hindu' => 14,
-    'Buddha' => 15
-];
-$agama_siswa = $siswa['agama'] ?? '';
-$id_mapel_agama_siswa = $mapel_agama_map[$agama_siswa] ?? null;
-$semua_id_mapel_agama_string = implode(',', array_values($mapel_agama_map));
-if (empty($semua_id_mapel_agama_string)) $semua_id_mapel_agama_string = '0';
+// --- [LOGIKA BARU] FILTER MAPEL OTOMATIS ---
+// 1. Ambil semua mapel yang mengandung kata 'Agama' dari database
+$q_mapel_agama_all = mysqli_query($koneksi, "SELECT id_mapel, nama_mapel FROM mata_pelajaran WHERE nama_mapel LIKE '%Agama%'");
+$list_id_semua_agama = [];
+$id_mapel_agama_siswa = null;
+$agama_siswa_string = trim($siswa['agama'] ?? ''); // misal 'Islam'
+
+while ($row_agama = mysqli_fetch_assoc($q_mapel_agama_all)) {
+    $id_mapel_db = $row_agama['id_mapel'];
+    $nama_mapel_db = $row_agama['nama_mapel'];
+    
+    // Simpan ID ini sebagai 'ID mapel agama'
+    $list_id_semua_agama[] = $id_mapel_db;
+
+    // Cek apakah mapel ini cocok dengan agama siswa
+    // Logika: Jika agama siswa (misal 'Islam') ada di dalam nama mapel (misal 'Pendidikan Agama Islam')
+    if (!empty($agama_siswa_string) && stripos($nama_mapel_db, $agama_siswa_string) !== false) {
+        $id_mapel_agama_siswa = $id_mapel_db;
+    }
+}
+
+// Buat string ID untuk NOT IN (..., ...)
+$string_id_semua_agama = !empty($list_id_semua_agama) ? implode(',', $list_id_semua_agama) : '0';
 
 $query_mapel_string = "
     SELECT DISTINCT mp.id_mapel, mp.nama_mapel, mp.urutan 
@@ -138,13 +149,18 @@ $query_mapel_string = "
         AND gm.id_tahun_ajaran = $id_tahun_ajaran
  ";
 
-if ($id_mapel_agama_siswa) {
-    $query_mapel_string .= " AND (mp.id_mapel NOT IN ($semua_id_mapel_agama_string) OR mp.id_mapel = $id_mapel_agama_siswa)";
-} else {
-    $query_mapel_string .= " AND mp.id_mapel NOT IN ($semua_id_mapel_agama_string)";
-}
+// Filter Pintar:
+// Ambil mapel JIKA:
+// 1. ID Mapel TERSEBUT BUKAN termasuk mapel agama (seperti Matematika, IPAS, dll)
+//    ATAU
+// 2. ID Mapel TERSEBUT ADALAH mapel agama milik siswa ini
+$query_mapel_string .= " AND (
+    mp.id_mapel NOT IN ($string_id_semua_agama) 
+    OR mp.id_mapel = " . ($id_mapel_agama_siswa ? $id_mapel_agama_siswa : '0') . "
+)";
+
 $query_mapel_string .= " ORDER BY mp.urutan ASC, mp.nama_mapel ASC";
-// --- Akhir Filter Mapel ---
+// --- AKHIR FILTER MAPEL OTOMATIS ---
 
 $semua_mapel_query = mysqli_query($koneksi, $query_mapel_string);
 
