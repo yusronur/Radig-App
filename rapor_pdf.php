@@ -10,6 +10,7 @@ ini_set('max_execution_time', 300); // Naikkan batas waktu ke 300 detik (5 menit
 
 session_start();
 include 'koneksi.php';
+include 'utils/tanggal.php';
 require_once 'libs/autoload.php';
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -38,8 +39,8 @@ $semester_aktif_pdf = $pengaturan_pdf['semester_aktif'] ?? 1;
 $semester_text_pdf = ($semester_aktif_pdf == 1) ? '1 (Ganjil)' : '2 (Genap)';
 
 // Menggunakan tanggal rapor akhir semester
-$tanggal_rapor_db_pdf = $pengaturan_pdf['tanggal_rapor'] ?? date("Y-m-d");
-$tanggal_rapor_pdf = date("d F Y", strtotime($tanggal_rapor_db_pdf));
+$tanggal_rapor_db_pdf = $pengaturan_pdf['tanggal_rapor'] ?? date_id("Y-m-d");
+$tanggal_rapor_pdf = date_id("d F Y", strtotime($tanggal_rapor_db_pdf));
 
 $q_sekolah_pdf = mysqli_query($koneksi, "SELECT * FROM sekolah WHERE id_sekolah = 1");
 $sekolah_pdf = mysqli_fetch_assoc($q_sekolah_pdf);
