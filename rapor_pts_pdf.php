@@ -233,7 +233,7 @@ ob_start(); // Mulai output buffering
     <title>Rapor PTS <?php echo htmlspecialchars($siswa['nama_lengkap']); ?></title>
     <style>
         @page {
-            margin: 110px 30px 40px 30px;
+            margin: 140px 30px 40px 30px;
             /* top, right, bottom, left */
         }
 
@@ -245,11 +245,10 @@ ob_start(); // Mulai output buffering
 
         header {
             position: fixed;
-            top: -100px;
+            top: -130px;
             /* Sesuaikan dengan margin atas */
             left: 0px;
             right: 0px;
-            height: 90px;
         }
 
         .pagenum:before {
@@ -301,7 +300,6 @@ ob_start(); // Mulai output buffering
             text-align: center;
             font-size: 14pt;
             font-weight: bold;
-            margin-top: 25px;
             /* [PERBAIKAN] Digeser ke bawah (dari 15px) */
             margin-bottom: 15px;
             color: #000;
