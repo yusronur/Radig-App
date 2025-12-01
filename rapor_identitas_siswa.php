@@ -1,6 +1,7 @@
 <?php
 session_start();
 include 'koneksi.php';
+include './utils/tanggal.php';
 require_once 'libs/autoload.php';
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -95,7 +96,7 @@ ob_start();
                 <td class="num">3.</td>
                 <td class="label">Tempat, Tanggal Lahir</td>
                 <td class="separator">:</td>
-                <td><?php echo htmlspecialchars($siswa['tempat_lahir']) . ', ' . date('d F Y', strtotime($siswa['tanggal_lahir'])); ?></td>
+                <td><?php echo htmlspecialchars($siswa['tempat_lahir']) . ', ' . date_id('d F Y', strtotime($siswa['tanggal_lahir'])); ?></td>
             </tr>
             <tr>
                 <td class="num">4.</td>
@@ -153,7 +154,7 @@ ob_start();
                 <td></td>
                 <td style="padding-left: 20px;">Pada tanggal</td>
                 <td class="separator">:</td>
-                <td><?php echo !empty($siswa['diterima_tanggal']) ? date('d F Y', strtotime($siswa['diterima_tanggal'])) : '-'; ?></td>
+                <td><?php echo !empty($siswa['diterima_tanggal']) ? date_id('d F Y', strtotime($siswa['diterima_tanggal'])) : '-'; ?></td>
             </tr>
             <tr>
                 <td class="num">12.</td>
@@ -228,7 +229,7 @@ ob_start();
 
     <div class="signature-block">
         <!-- PERUBAHAN: Lokasi dinamis -->
-        <?php echo htmlspecialchars($sekolah['kecamatan']); ?>, <?php echo date('d F Y'); ?><br>
+        <?php echo htmlspecialchars($sekolah['kecamatan']); ?>, <?php echo date_id('d F Y'); ?><br>
         Kepala Sekolah,
         <div class="signature-space"></div>
         <strong><u><?php echo htmlspecialchars($sekolah['nama_kepsek']); ?></u></strong><br>
