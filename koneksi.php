@@ -3,10 +3,10 @@
 // Konfigurasi untuk terhubung ke database MySQL
 
 // --- SESUAIKAN DENGAN PENGATURAN HOSTING ANDA ---
-$host = "localhost"; // Biasanya 'localhost' jika web dan database di server yang sama
+$host = "db"; // Biasanya 'localhost' jika web dan database di server yang sama
 $user = "root"; // Ganti dengan username database yang Anda buat
-$pass = "11223344"; // Ganti dengan password database
-$db   = "raporsmp"; // Ganti dengan nama database yang Anda buat
+$pass = "N4n4n4h0"; // Ganti dengan password database
+$db   = "rapor"; // Ganti dengan nama database yang Anda buat
 // --------------------------------------------------
 
 // Membuat koneksi

@@ -54,7 +54,7 @@ $sekolah_identitas = mysqli_fetch_assoc($q_sekolah_identitas);
             <td class="num">3.</td>
             <td class="label">Tempat, Tanggal Lahir</td>
             <td class="separator">:</td>
-            <td><?php echo htmlspecialchars($siswa_identitas['tempat_lahir']) . ', ' . date('d F Y', strtotime($siswa_identitas['tanggal_lahir'])); ?></td>
+            <td><?php echo htmlspecialchars($siswa_identitas['tempat_lahir']) . ', ' . date_id('d F Y', strtotime($siswa_identitas['tanggal_lahir'])); ?></td>
         </tr>
         <tr>
             <td class="num">4.</td>
@@ -111,7 +111,7 @@ $sekolah_identitas = mysqli_fetch_assoc($q_sekolah_identitas);
             <td></td>
             <td style="padding-left: 20px;">Pada tanggal</td>
             <td class="separator">:</td>
-            <td><?php echo !empty($siswa_identitas['diterima_tanggal']) ? date('d F Y', strtotime($siswa_identitas['diterima_tanggal'])) : '-'; ?></td>
+            <td><?php echo !empty($siswa_identitas['diterima_tanggal']) ? date_id('d F Y', strtotime($siswa_identitas['diterima_tanggal'])) : '-'; ?></td>
         </tr>
         <tr>
             <td class="num">12.</td>
@@ -185,7 +185,7 @@ $sekolah_identitas = mysqli_fetch_assoc($q_sekolah_identitas);
 </div>
 
 <div class="signature-block">
-    <?php echo htmlspecialchars($sekolah_identitas['kecamatan']); ?>, <?php echo date('d F Y'); ?><br>
+    <?php echo htmlspecialchars($sekolah_identitas['kecamatan']); ?>, <?php echo date_id('d F Y'); ?><br>
     Kepala Sekolah,
     <div class="signature-space"></div>
     <strong><u><?php echo htmlspecialchars($sekolah_identitas['nama_kepsek']); ?></u></strong><br>
