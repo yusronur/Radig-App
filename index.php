@@ -1,116 +1,33 @@
 <?php
-// --- MULAI DEBUGGING ---
-// Tampilkan semua error agar kita tahu apa masalahnya
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-// --- SELESAI DEBUGGING ---
-
+// --- LOGIKA BACKEND (JANGAN DIHAPUS) ---
 session_start();
-
-// 1. PERIKSA FILE KONEKSI
-$koneksi_path = 'koneksi.php';
-if (!file_exists($koneksi_path)) {
-    // Jika file tidak ada, hentikan script dan beri pesan jelas
-    die("Error Kritis: File koneksi di path '<b>$koneksi_path</b>' tidak ditemukan. Pastikan path dan nama file sudah benar.");
-}
-require $koneksi_path;
-
-// 2. PERIKSA VARIABEL KONEKSI
-// Ganti '$koneksi' di baris ini jika nama variabel di file Anda berbeda (misal: $conn, $db)
-if (!isset($koneksi) || $koneksi === null) {
-    die("Error Kritis: Variabel koneksi '<b>$koneksi</b>' tidak ditemukan di dalam file '<b>$koneksi_path</b>'.<br>Mungkin nama variabelnya berbeda (misal: $conn atau $db?)");
-}
-if (mysqli_connect_errno()) {
-    die("Error Kritis: Gagal terhubung ke database. Pesan error: " . mysqli_connect_error());
-}
-
-// 3. AMBIL DATA SEKOLAH (DENGAN PENGECEKAN ERROR)
-$nama_sekolah = 'Nama Sekolah Anda'; // Default
-$logo_path = 'assets/img/default-logo.png'; // Default
-
-$sql_sekolah = "SELECT nama_sekolah, logo_sekolah FROM sekolah WHERE id_sekolah = 1";
-$query_sekolah = mysqli_query($koneksi, $sql_sekolah);
-
-if (!$query_sekolah) {
-    // Tampilkan error jika query gagal
-    die("Error query database: " . mysqli_error($koneksi));
-}
-
-$data_sekolah = mysqli_fetch_assoc($query_sekolah);
-
-if ($data_sekolah) {
-    $nama_sekolah = $data_sekolah['nama_sekolah'] ?? $nama_sekolah;
-    $logo_filename = $data_sekolah['logo_sekolah'] ?? null;
-
-    if ($logo_filename && file_exists('uploads/' . $logo_filename)) {
-        $logo_path = 'uploads/' . $logo_filename;
-    }
-}
-
-// 4. AMBIL DATA UNTUK TESTIMONI (BARU)
-$testimonials = [];
-$default_avatar_guru = 'https://placehold.co/100x100/4A148C/FFFFFF?text=Guru';
-$default_avatar_siswa = 'https://placehold.co/100x100/FFAB00/FFFFFF?text=Siswa';
-
-// Ambil 2 Guru (yang punya foto)
-$sql_guru = "SELECT nama_guru, foto_guru FROM guru WHERE role = 'guru' AND foto_guru IS NOT NULL AND foto_guru != '' ORDER BY RAND() LIMIT 2";
-$query_guru = mysqli_query($koneksi, $sql_guru);
-if ($query_guru) {
-    while ($guru = mysqli_fetch_assoc($query_guru)) {
-        $foto_path_guru = 'uploads/' . $guru['foto_guru'];
-        $testimonials[] = [
-            'nama' => $guru['nama_guru'],
-            'foto' => (file_exists($foto_path_guru)) ? $foto_path_guru : $default_avatar_guru,
-            'fallback' => $default_avatar_guru,
-            'role' => 'Guru',
-            'quote' => 'Radig sangat memudahkan saya memantau perkembangan siswa. Fitur portofolio digitalnya luar biasa!'
-        ];
-    }
-}
-
-// Ambil 2 Siswa (yang punya foto)
-// Asumsi foto siswa juga ada di folder 'uploads/'
-$sql_siswa = "SELECT nama_lengkap, foto_siswa FROM siswa WHERE status_siswa = 'Aktif' AND foto_siswa IS NOT NULL AND foto_siswa != '' ORDER BY RAND() LIMIT 2";
-$query_siswa = mysqli_query($koneksi, $sql_siswa);
-if ($query_siswa) {
-    while ($siswa = mysqli_fetch_assoc($query_siswa)) {
-         $foto_path_siswa = 'uploads/' . $siswa['foto_siswa'];
-        $testimonials[] = [
-            'nama' => $siswa['nama_lengkap'],
-            'foto' => (file_exists($foto_path_siswa)) ? $foto_path_siswa : $default_avatar_siswa,
-            'fallback' => $default_avatar_siswa,
-            'role' => 'Siswa',
-            'quote' => 'Saya jadi lebih mudah berkomunikasi dengan Guru Wali saya. Belajar jadi lebih terarah.'
-        ];
-    }
-}
-
-// Jika data minim, tambahkan fallback manual (agar desain tidak rusak)
-if (count($testimonials) < 2) {
-     $testimonials[] = [
-            'nama' => 'Budi, S.Pd.',
-            'foto' => $default_avatar_guru,
-            'fallback' => $default_avatar_guru,
-            'role' => 'Guru',
-            'quote' => 'Aplikasi ini adalah terobosan untuk pendidikan modern. Sangat membantu rekapitulasi nilai.'
-        ];
-     $testimonials[] = [
-            'nama' => 'Siti Aisyah',
-            'foto' => $default_avatar_siswa,
-            'fallback' => $default_avatar_siswa,
-            'role' => 'Siswa',
-            'quote' => 'Melihat nilai dan catatan guru jadi lebih transparan. Saya suka!'
-        ];
-}
-// Acak testimoni agar guru/siswa tidak selalu berurutan
-shuffle($testimonials);
-
-
-// 5. CEK JIKA PENGGUNA SUDAH LOGIN
+// Jika sudah login, lempar ke dashboard
 if (isset($_SESSION['role'])) {
     header("Location: dashboard.php");
     exit();
+}
+
+require_once 'koneksi.php';
+
+// 1. AMBIL DATA SEKOLAH
+$nama_sekolah = 'Aplikasi Rapor Digital';
+$logo_path = 'assets/img/logo_default.png'; 
+
+// Cek koneksi sebelum query
+if (isset($koneksi)) {
+    $q_sekolah = mysqli_query($koneksi, "SELECT nama_sekolah, logo_sekolah FROM sekolah LIMIT 1");
+    if ($q_sekolah && mysqli_num_rows($q_sekolah) > 0) {
+        $d_sekolah = mysqli_fetch_assoc($q_sekolah);
+        $nama_sekolah = $d_sekolah['nama_sekolah'];
+        if (!empty($d_sekolah['logo_sekolah']) && file_exists('uploads/'.$d_sekolah['logo_sekolah'])) {
+            $logo_path = 'uploads/'.$d_sekolah['logo_sekolah'];
+        }
+    }
+
+    // 2. AMBIL DATA STATISTIK SEDERHANA (Untuk Tampilan Hero)
+    $count_siswa = mysqli_fetch_assoc(mysqli_query($koneksi, "SELECT COUNT(*) as c FROM siswa WHERE status_siswa='Aktif'"))['c'] ?? 0;
+    $count_guru = mysqli_fetch_assoc(mysqli_query($koneksi, "SELECT COUNT(*) as c FROM guru"))['c'] ?? 0;
+    $count_kelas = mysqli_fetch_assoc(mysqli_query($koneksi, "SELECT COUNT(*) as c FROM kelas"))['c'] ?? 0;
 }
 ?>
 <!DOCTYPE html>
@@ -118,542 +35,587 @@ if (isset($_SESSION['role'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Selamat Datang di Radig - <?php echo htmlspecialchars($nama_sekolah); ?></title>
-
-    <link href="assets/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Perbaikan Path: "assets://" diubah menjadi "assets/" -->
-    <link href="assets/css/bootstrap-icons.min.css" rel="stylesheet">
-    <link href="assets/css/sweetalert2.min.css" rel="stylesheet">
-    <link href="assets/css/poppins-font.css" rel="stylesheet">
-
-    <script src="assets/js/jquery-3.7.1.min.js"></script>
-    <script src="assets/js/sweetalert2.min.js"></script>
-    <script src="assets/js/bootstrap.bundle.min.js"></script>
+    <title>Portal Rapor Digital | <?php echo htmlspecialchars($nama_sekolah); ?></title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- CSS Libraries -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet"> <!-- Animate On Scroll -->
+    <link rel="stylesheet" href="assets/css/sweetalert2.min.css">
 
     <style>
-        /* SKEMA WARNA BARU (Berwarna-warni) */
         :root {
-            --primary-color: #00796B;   
-            --secondary-color: #14c4b0; 
-            --accent-1: #00796B;        /* Teal */
-            --accent-2: #FFAB00;        /* Amber */
-            --accent-3: #E64A19;        /* Deep Orange */
-            --background-light: #F8F9FA;
-            --text-dark: #212529;
-            --text-muted: #6c757d;
-            --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-            --card-shadow-hover: 0 8px 25px rgba(0, 0, 0, 0.1);
+            --primary: #4361ee;
+            --secondary: #3f37c9;
+            --accent: #4cc9f0;
+            --text-dark: #0b090a;
+            --text-light: #6c757d;
+            --bg-light: #f8f9fa;
+            --glass: rgba(255, 255, 255, 0.8);
         }
+
         body {
-            font-family: 'Poppins', sans-serif;
-            background-color: var(--background-light);
-            color: var(--text-dark);
+            font-family: 'Plus Jakarta Sans', sans-serif;
             overflow-x: hidden;
-        }
-
-        /* --- NAVBAR --- */
-        .navbar {
             background-color: #fff;
-            box-shadow: var(--card-shadow);
-            transition: all 0.3s ease;
-        }
-        .navbar-brand {
-            font-weight: 700;
-            color: var(--primary-color) !important;
-        }
-        .btn-primary {
-            background-color: var(--primary-color);
-            border-color: var(--primary-color);
-            font-weight: 600;
-            padding: 10px 25px;
-            border-radius: 50px;
-            transition: all 0.3s ease;
-        }
-        .btn-primary:hover {
-            background-color: var(--secondary-color);
-            border-color: var(--secondary-color);
-            transform: translateY(-2px);
-            box-shadow: var(--card-shadow-hover);
         }
 
-        /* --- HERO SECTION --- */
+        /* Navbar Transparent to Sticky */
+        .navbar {
+            transition: all 0.4s ease;
+            padding: 1.5rem 0;
+        }
+        .navbar.scrolled {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            padding: 1rem 0;
+        }
+        .navbar-brand img {
+            height: 40px;
+            transition: transform 0.3s;
+        }
+        .navbar-brand span {
+            font-weight: 700;
+            color: var(--text-dark);
+            letter-spacing: -0.5px;
+        }
+
+        /* Hero Section */
         .hero-section {
-            background-color: #ffffff;
-            padding: 140px 0 100px 0;
-            min-height: 90vh;
+            position: relative;
+            padding: 160px 0 100px;
+            background: radial-gradient(circle at top right, #eef2ff 0%, #fff 40%);
+            overflow: hidden;
+        }
+        /* Blob Background Animation */
+        .hero-blob {
+            position: absolute;
+            top: -10%;
+            right: -10%;
+            width: 600px;
+            height: 600px;
+            background: linear-gradient(135deg, #4cc9f0 0%, #4361ee 100%);
+            filter: blur(80px);
+            opacity: 0.2;
+            border-radius: 50%;
+            z-index: 0;
+            animation: float 10s infinite ease-in-out;
+        }
+        .hero-blob-2 {
+            position: absolute;
+            bottom: 10%;
+            left: -10%;
+            width: 400px;
+            height: 400px;
+            background: linear-gradient(135deg, #f72585 0%, #7209b7 100%);
+            filter: blur(90px);
+            opacity: 0.15;
+            border-radius: 50%;
+            z-index: 0;
+            animation: float 15s infinite ease-in-out reverse;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 2;
+        }
+
+        .hero-title {
+            font-size: 3.5rem;
+            font-weight: 800;
+            line-height: 1.1;
+            color: var(--text-dark);
+            margin-bottom: 1.5rem;
+        }
+        .hero-title span {
+            background: linear-gradient(120deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero-subtitle {
+            font-size: 1.25rem;
+            color: var(--text-light);
+            margin-bottom: 2.5rem;
+            line-height: 1.6;
+        }
+
+        /* Buttons */
+        .btn-grad {
+            background-image: linear-gradient(to right, #4361ee 0%, #3f37c9 51%, #4361ee 100%);
+            padding: 15px 35px;
+            text-align: center;
+            text-transform: uppercase;
+            transition: 0.5s;
+            background-size: 200% auto;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            font-size: 0.9rem;
+            box-shadow: 0 10px 20px rgba(67, 97, 238, 0.3);
+        }
+        .btn-grad:hover {
+            background-position: right center;
+            color: #fff;
+            transform: translateY(-3px);
+            box-shadow: 0 15px 25px rgba(67, 97, 238, 0.4);
+        }
+
+        /* 3D Illustration Placeholder using CSS & Icons */
+        .hero-image-wrapper {
+            position: relative;
+            padding: 2rem;
+        }
+        .floating-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.8);
+            border-radius: 24px;
+            padding: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+            position: absolute;
             display: flex;
             align-items: center;
-            text-align: center;
+            gap: 15px;
+            animation: float-card 6s ease-in-out infinite;
         }
-        .hero-logo {
-            max-height: 120px;
-            height: auto;
-            width: auto;
-            margin-bottom: 2rem;
-            border-radius: 50%;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            /* Animasi Float */
-            animation: float-anim 4s ease-in-out infinite;
-        }
-        .hero-section h1 {
-            font-size: 2.8rem;
-            font-weight: 700;
-            line-height: 1.2;
-            margin-bottom: 1rem;
-            color: var(--primary-color);
-        }
-        .hero-section h2 {
-            font-size: 2rem;
-            font-weight: 500;
-            color: var(--text-dark);
-        }
-        .hero-section .lead {
-            font-size: 1.15rem;
-            color: var(--text-muted);
-            margin-bottom: 2rem;
-            max-width: 700px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        .btn-primary.btn-lg {
-            padding: 14px 40px;
-            font-size: 1.1rem;
-        }
-        /* Animasi Pulse untuk Tombol */
-        .pulse-anim {
-            animation: pulse-anim 2s infinite;
-        }
+        .card-1 { top: 10%; right: 10%; z-index: 2; }
+        .card-2 { bottom: 20%; left: 5%; z-index: 3; animation-delay: 2s; }
+        .card-3 { top: 40%; right: -5%; z-index: 1; animation-delay: 1s; }
 
-        /* --- SECTION UMUM --- */
-        .content-section {
-            padding: 80px 0;
+        .icon-box {
+            width: 50px; height: 50px;
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; color: white;
         }
-        .section-title {
-            font-weight: 700;
-            margin-bottom: 1rem;
-            font-size: 2.5rem;
-            color: var(--text-dark);
+        
+        /* Features Section */
+        .features-section {
+            padding: 100px 0;
+            position: relative;
         }
-        .section-subtitle {
-            max-width: 700px;
-            margin-left: auto;
-            margin-right: auto;
-            color: var(--text-muted);
-            margin-bottom: 4rem;
-            font-size: 1.1rem;
-        }
-
-        /* --- FITUR (WARNA-WARNI) --- */
-        .feature-card {
-            background: #fff;
-            border-radius: 1rem;
-            padding: 2.5rem;
-            text-align: center;
-            box-shadow: var(--card-shadow);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        .feature-box {
+            padding: 40px 30px;
+            border-radius: 24px;
+            background: white;
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
             height: 100%;
-            border-top: 5px solid transparent; /* Border atas untuk warna */
-            border-bottom: 1px solid #eee;
-            border-left: 1px solid #eee;
-            border-right: 1px solid #eee;
         }
-        .feature-card:hover {
-             transform: translateY(-10px);
-            box-shadow: var(--card-shadow-hover);
+        .feature-box:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+            border-color: transparent;
         }
         .feature-icon {
-            font-size: 3rem;
+            width: 70px; height: 70px;
+            border-radius: 20px;
+            background: #f8f9fa;
+            color: var(--primary);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.8rem;
             margin-bottom: 1.5rem;
-            transition: transform 0.3s ease;
+            transition: all 0.3s;
         }
-        .feature-card:hover .feature-icon {
-            transform: rotate(-10deg) scale(1.1);
+        .feature-box:hover .feature-icon {
+            background: var(--primary);
+            color: white;
+            transform: rotate(-10deg);
         }
-        .feature-card h3 {
-            font-weight: 600;
-            margin-bottom: 1rem;
-        }
-        /* Warna-warni untuk Fitur */
-        .feature-card-1 { border-top-color: var(--accent-1); }
-        .feature-card-1 h3 { color: var(--accent-1); }
-        .feature-icon-1 { color: var(--accent-1); }
 
-        .feature-card-2 { border-top-color: var(--accent-2); }
-        .feature-card-2 h3 { color: var(--accent-2); }
-        .feature-icon-2 { color: var(--accent-2); }
-        
-        .feature-card-3 { border-top-color: var(--accent-3); }
-        .feature-card-3 h3 { color: var(--accent-3); }
-        .feature-icon-3 { color: var(--accent-3); }
+        /* Stats Section */
+        .stats-section {
+            background: var(--primary);
+            color: white;
+            padding: 60px 0;
+            border-radius: 30px;
+            margin: 0 20px;
+        }
 
-        /* --- WORKFLOW (WARNA-WARNI) --- */
-        .workflow-card {
+        /* Footer */
+        footer {
             background-color: #fff;
-            border-radius: 1rem;
-            padding: 2rem;
-            text-align: center;
-            box-shadow: var(--card-shadow);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            height: 100%;
-        }
-        .workflow-card:hover {
-            transform: translateY(-10px);
-            box-shadow: var(--card-shadow-hover);
-        }
-        .workflow-icon-bg {
-            width: 80px;
-            height: 80px;
-            color: #fff;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 1.5rem auto;
-            transition: all 0.3s ease;
-        }
-        .workflow-card:hover .workflow-icon-bg {
-            transform: scale(1.1) rotate(10deg);
-        }
-        .workflow-icon {
-            font-size: 2.5rem;
-        }
-        /* Warna-warni untuk Workflow */
-        .workflow-card-1 .workflow-icon-bg { background-color: var(--accent-1); }
-        .workflow-card-2 .workflow-icon-bg { background-color: var(--accent-2); }
-        .workflow-card-3 .workflow-icon-bg { background-color: var(--accent-3); }
-        .workflow-card-4 .workflow-icon-bg { background-color: var(--primary-color); }
-
-        /* --- TESTIMONI --- */
-        .testimonial-card {
-            background: #fff;
-            border-radius: 1rem;
-            padding: 2rem;
-            text-align: center;
-            box-shadow: var(--card-shadow);
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-        }
-        .testimonial-img {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            object-fit: cover;
-            margin-bottom: 1.5rem;
-            border: 4px solid var(--primary-color);
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        }
-        .testimonial-card .quote {
-            font-style: italic;
-            color: var(--text-muted);
-            margin-bottom: 1rem;
-            flex-grow: 1;
-        }
-        .testimonial-card .name {
-            font-weight: 600;
-            color: var(--text-dark);
-            margin-bottom: 0;
-        }
-         .testimonial-card .role {
-            font-size: 0.9rem;
-            color: var(--secondary-color); /* Ganti warna role */
-            font-weight: 500;
-        }
-        
-        /* --- FOOTER --- */
-        .footer {
-            background-color: #343a40;
-            color: #fff;
-            padding: 40px 0 20px 0;
-        }
-        .footer p {
-            color: rgba(255, 255, 255, 0.7);
+            padding: 50px 0 20px;
+            border-top: 1px solid #eee;
         }
 
-        /* --- MODAL --- */
-        #loginModal .modal-content {
-            border-radius: 1rem;
+        /* Modal Login Custom */
+        .modal-content {
+            border-radius: 24px;
             border: none;
-            box-shadow: var(--card-shadow-hover);
+            overflow: hidden;
         }
-        #loginModalLabel {
-            font-weight: 600;
-            color: var(--primary-color);
+        .modal-header {
+            background: linear-gradient(135deg, #4361ee, #4cc9f0);
+            color: white;
+            border: none;
+            padding: 2rem 2rem 1rem;
         }
-        #loginModal .form-control:focus {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 0.25rem rgba(74, 20, 140, 0.25);
+        .modal-body {
+            padding: 2rem;
+        }
+        .form-control {
+            border-radius: 12px;
+            padding: 12px 15px;
+            border: 2px solid #f1f5f9;
+            background-color: #f8f9fa;
+        }
+        .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: none;
+            background-color: #fff;
         }
 
-        /* --- KEYFRAMES ANIMASI --- */
-        @keyframes float-anim {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-15px); }
-            100% { transform: translateY(0px); }
+        /* Animations */
+        @keyframes float {
+            0% { transform: translate(0, 0); }
+            50% { transform: translate(30px, 50px); }
+            100% { transform: translate(0, 0); }
         }
-        
-        @keyframes pulse-anim {
-            0% { box-shadow: 0 0 0 0 rgba(74, 20, 140, 0.4); }
-            70% { box-shadow: 0 0 0 15px rgba(74, 20, 140, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(74, 20, 140, 0); }
+        @keyframes float-card {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
         }
 
-        .reveal {
-            opacity: 0;
-            transform: translateY(40px);
-            transition: opacity 0.8s ease-out, transform 0.8s ease-out;
-        }
-        .reveal.active {
-            opacity: 1;
-            transform: translateY(0);
+        /* Responsive adjustments */
+        @media (max-width: 991.98px) {
+            .hero-title { font-size: 2.5rem; }
+            .hero-image-wrapper { display: none; } /* Hide complex illustration on mobile */
+            .stats-section { margin: 0; border-radius: 0; }
         }
     </style>
 </head>
 <body>
 
-    <nav class="navbar navbar-expand-lg navbar-light fixed-top">
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg fixed-top">
         <div class="container">
-            <a class="navbar-brand d-flex align-items-center" href="#">
-                <img src="<?php echo htmlspecialchars($logo_path); ?>" alt="Logo Sekolah" height="35" class="me-2">
-                <span>Rapor Digital (Radig)</span>
+            <a class="navbar-brand d-flex align-items-center gap-2" href="#">
+                <img src="<?php echo $logo_path; ?>" alt="Logo" onerror="this.style.display='none'">
+                <span>Radig<span style="color:var(--primary)">.</span></span>
             </a>
-            <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#loginModal">
-                <i class="bi bi-box-arrow-in-right"></i> Masuk
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
             </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center gap-3">
+                    <li class="nav-item"><a class="nav-link" href="#fitur">Fitur</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#alur">Alur Kerja</a></li>
+                    <li class="nav-item">
+                        <button class="btn btn-grad px-4 py-2" style="font-size: 0.8rem;" data-bs-toggle="modal" data-bs-target="#loginModal">
+                            Masuk Aplikasi
+                        </button>
+                    </li>
+                </ul>
+            </div>
         </div>
     </nav>
 
-    <!-- HERO SECTION BARU - Personal ke Sekolah -->
-    <header class="hero-section d-flex align-items-center">
-        <div class="container">
-            <div class="row justify-content-center">
-                <div class="col-lg-10">
-                    <!-- Logo Sekolah DIBESARKAN dan di TENGAH -->
-                    <img src="<?php echo htmlspecialchars($logo_path); ?>" alt="Logo <?php echo htmlspecialchars($nama_sekolah); ?>" class="hero-logo reveal">
-                    
-                    <!-- H1 Baru -->
-                    <h1 class="reveal" style="transition-delay: 0.1s;">
-                        Selamat Datang di Portal Rapor Digital
+    <!-- Hero Section -->
+    <section class="hero-section d-flex align-items-center">
+        <div class="hero-blob"></div>
+        <div class="hero-blob-2"></div>
+        
+        <div class="container hero-content">
+            <div class="row align-items-center">
+                <div class="col-lg-6" data-aos="fade-right" data-aos-duration="1000">
+                    <div class="d-inline-block px-3 py-1 rounded-pill bg-primary bg-opacity-10 text-primary fw-bold mb-3" style="font-size: 0.85rem;">
+                        🚀 Platform Rapor Digital Modern v2.0.1 rev
+                    </div>
+                    <h1 class="hero-title">
+                        Digitalisasi Akademik <br>
+                        <span>Lebih Cerdas.</span>
                     </h1>
-                    
-                    <!-- H2 Baru - Nama Sekolah Dinamis -->
-                    <h2 class="fw-normal mb-4 reveal" style="transition-delay: 0.2s;">
-                        <?php echo htmlspecialchars($nama_sekolah); ?>
-                    </h2>
-                    
-                    <p class="lead mb-4 reveal" style="transition-delay: 0.3s;">
-                        Akses mudah dan terintegrasi untuk Guru, Siswa, dan Wali Murid.
+                    <p class="hero-subtitle">
+                        Solusi terintegrasi untuk manajemen penilaian, absensi, dan pelaporan hasil belajar di <?php echo htmlspecialchars($nama_sekolah); ?>. Akses data akademik secara real-time, dimana saja.
                     </p>
-                    <!-- Tombol dengan Animasi Pulse -->
-                    <a href="#" class="btn btn-primary btn-lg shadow-sm reveal pulse-anim" data-bs-toggle="modal" data-bs-target="#loginModal" style="transition-delay: 0.4s;">
-                        <i class="bi bi-box-arrow-in-right me-2"></i>Masuk ke Akun Anda
-                    </a>
+                    <div class="d-flex gap-3 flex-wrap">
+                        <button class="btn btn-grad shadow-lg" data-bs-toggle="modal" data-bs-target="#loginModal">
+                            <i class="bi bi-box-arrow-in-right me-2"></i> Login Sekarang
+                        </button>
+                        <a href="#fitur" class="btn btn-light px-4 py-3 rounded-pill fw-bold text-dark border">
+                            Pelajari Dulu <i class="bi bi-arrow-down ms-2"></i>
+                        </a>
+                    </div>
+                    
+                    <div class="mt-5 d-flex gap-4 text-muted">
+                        <div>
+                            <h4 class="fw-bold text-dark mb-0"><?php echo $count_siswa; ?>+</h4>
+                            <small>Siswa Aktif</small>
+                        </div>
+                        <div class="vr"></div>
+                        <div>
+                            <h4 class="fw-bold text-dark mb-0"><?php echo $count_guru; ?>+</h4>
+                            <small>Guru Pengajar</small>
+                        </div>
+                        <div class="vr"></div>
+                        <div>
+                            <h4 class="fw-bold text-dark mb-0"><?php echo $count_kelas; ?></h4>
+                            <small>Rombel Kelas</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-6 d-none d-lg-block position-relative" style="height: 500px;" data-aos="fade-left" data-aos-duration="1200">
+                    <!-- Abstract Composition / Illustration -->
+                    <img src="assets/img/logo_default.png" alt="School Logo" class="position-absolute top-50 start-50 translate-middle" style="width: 300px; opacity: 0.05; z-index: 0;">
+                    
+                    <!-- Floating Card 1: Nilai -->
+                    <div class="floating-card card-1">
+                        <div class="icon-box bg-success">
+                            <i class="bi bi-check-lg"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-0 fw-bold">Input Nilai</h6>
+                            <small class="text-muted">Cepat & Akurat</small>
+                        </div>
+                    </div>
+
+                    <!-- Floating Card 2: Rapor -->
+                    <div class="floating-card card-2">
+                        <div class="icon-box bg-primary">
+                            <i class="bi bi-file-earmark-pdf"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-0 fw-bold">Cetak Rapor</h6>
+                            <small class="text-muted">Otomatis PDF</small>
+                        </div>
+                    </div>
+
+                    <!-- Floating Card 3: User -->
+                    <div class="floating-card card-3">
+                        <div class="icon-box bg-warning text-dark">
+                            <i class="bi bi-people-fill"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-0 fw-bold">Wali Kelas</h6>
+                            <small class="text-muted">Monitoring Siswa</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Central Illustration Placeholder (bisa diganti gambar vektor 3D jika punya) -->
+                    <div class="position-absolute top-50 start-50 translate-middle">
+                        <div style="width: 400px; height: 400px; background: url('https://img.freepik.com/free-vector/gradient-online-test-illustration_23-2150235125.jpg?w=740&t=st=1709783000~exp=1709783600~hmac=fakehash') center/contain no-repeat; border-radius: 30px; box-shadow: 0 20px 50px rgba(0,0,0,0.1);"></div>
+                         <!-- Note: Gambar di atas adalah placeholder freeware, jika tidak muncul akan blank tapi layout tetap aman -->
+                    </div>
                 </div>
             </div>
         </div>
-    </header>
+    </section>
 
-    <main>
-        <!-- SECTION FITUR BARU - 3 Kartu Berwarna -->
-        <section id="keunggulan" class="content-section">
-            <div class="container">
-                <div class="text-center mb-5">
-                    <h2 class="section-title">Mengapa Menggunakan Radig?</h2>
-                    <p class="section-subtitle">Platform kami dirancang untuk merevolusi cara sekolah Anda mengelola data akademik dan pendampingan siswa.</p>
+    <!-- Features Section -->
+    <section id="fitur" class="features-section">
+        <div class="container">
+            <div class="row justify-content-center mb-5">
+                <div class="col-lg-6 text-center" data-aos="fade-up">
+                    <span class="text-primary fw-bold text-uppercase letter-spacing-2">Fitur Unggulan</span>
+                    <h2 class="fw-bold mt-2">Semua Kebutuhan Rapor <br>Dalam Satu Genggaman</h2>
                 </div>
-                <div class="row g-4">
-                    <!-- Kartu 1 -->
-                    <div class="col-lg-4 d-flex align-items-stretch reveal">
-                        <div class="feature-card feature-card-1">
-                            <!-- Ikon Baru -->
-                            <i class="bi bi-heart-pulse-fill feature-icon feature-icon-1"></i>
-                            <h3>Pendampingan Holistik</h3>
-                            <p class="text-muted">Fitur Guru Wali memungkinkan pendampingan jangka panjang, membangun portofolio digital komprehensif untuk setiap siswa dari masuk hingga lulus.</p>
+            </div>
+            
+            <div class="row g-4">
+                <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
+                    <div class="feature-box">
+                        <div class="feature-icon">
+                            <i class="bi bi-person-workspace"></i>
+                        </div>
+                        <h4>Role Guru & Walas</h4>
+                        <p class="text-muted">Pembagian tugas yang jelas antara Guru Mapel (Input Nilai) dan Wali Kelas (Leger & Rapor).</p>
+                    </div>
+                </div>
+                <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
+                    <div class="feature-box">
+                        <div class="feature-icon">
+                            <i class="bi bi-grid-1x2"></i>
+                        </div>
+                        <h4>Kurikulum Merdeka</h4>
+                        <p class="text-muted">Mendukung penilaian Sumatif, Formatif, dan Projek (P5) sesuai standar kurikulum terbaru.</p>
+                    </div>
+                </div>
+                <div class="col-md-4" data-aos="fade-up" data-aos-delay="300">
+                    <div class="feature-box">
+                        <div class="feature-icon">
+                            <i class="bi bi-phone"></i>
+                        </div>
+                        <h4>Akses Siswa</h4>
+                        <p class="text-muted">Siswa dapat login untuk melihat transkrip nilai sementara dan mengunduh rapor digital.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Workflow / Alur -->
+    <section id="alur" class="py-5 bg-light">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-5 mb-4 mb-lg-0" data-aos="fade-right">
+                    <h2 class="fw-bold mb-3">Alur Kerja Sederhana</h2>
+                    <p class="text-muted mb-4">Sistem dirancang untuk meminimalisir kesalahan input dan mempercepat proses pembagian rapor.</p>
+                    
+                    <div class="d-flex gap-3 mb-3">
+                        <div class="bg-white p-3 rounded-circle shadow-sm d-flex align-items-center justify-content-center" style="width:50px; height:50px;">
+                            <span class="fw-bold text-primary">1</span>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold">Admin Sekolah</h6>
+                            <p class="small text-muted">Mengatur Data Master (Siswa, Guru, Kelas, Mapel).</p>
                         </div>
                     </div>
-                    <!-- Kartu 2 -->
-                    <div class="col-lg-4 d-flex align-items-stretch reveal" style="transition-delay: 0.1s;">
-                         <div class="feature-card feature-card-2">
-                            <!-- Ikon Baru -->
-                            <i class="bi bi-chat-quote-fill feature-icon feature-icon-2"></i>
-                            <h3>Komunikasi Terintegrasi</h3>
-                            <p class="text-muted">Jembatani komunikasi Guru Wali dan siswa melalui chat privat. Memudahkan konsultasi, bimbingan, dan pemantauan kapanpun, di manapun.</p>
+                    <div class="d-flex gap-3 mb-3">
+                        <div class="bg-white p-3 rounded-circle shadow-sm d-flex align-items-center justify-content-center" style="width:50px; height:50px;">
+                            <span class="fw-bold text-primary">2</span>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold">Guru Mapel</h6>
+                            <p class="small text-muted">Membuat Tujuan Pembelajaran (TP) & Input Nilai.</p>
                         </div>
                     </div>
-                    <!-- Kartu 3 -->
-                    <div class="col-lg-4 d-flex align-items-stretch reveal" style="transition-delay: 0.2s;">
-                         <div class="feature-card feature-card-3">
-                            <!-- Ikon Baru -->
-                            <i class="bi bi-clipboard-check-fill feature-icon feature-icon-3"></i>
-                            <h3>Penilaian Komprehensif</h3>
-                            <p class="text-muted">Kelola nilai intra, kokurikuler , dan ekstrakurikuler dalam satu platform terpadu. Memberikan gambaran utuh perkembangan siswa.</p>
+                    <div class="d-flex gap-3">
+                        <div class="bg-white p-3 rounded-circle shadow-sm d-flex align-items-center justify-content-center" style="width:50px; height:50px;">
+                            <span class="fw-bold text-primary">3</span>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold">Wali Kelas</h6>
+                            <p class="small text-muted">Cek Kelengkapan, Input Ekstrakurikuler, Cetak Rapor.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6 ms-auto" data-aos="fade-left">
+                    <div class="bg-white p-4 rounded-4 shadow-lg position-relative border">
+                        <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <div style="width:12px; height:12px; background:#fc5c65; border-radius:50%;"></div>
+                                <div style="width:12px; height:12px; background:#fd9644; border-radius:50%;"></div>
+                                <div style="width:12px; height:12px; background:#26de81; border-radius:50%;"></div>
+                            </div>
+                            <small class="text-muted">Preview Dashboard</small>
+                        </div>
+                        <!-- Mockup Tabel Sederhana -->
+                        <table class="table table-hover text-center small">
+                            <thead class="table-light">
+                                <tr><th>Mapel</th><th>TP 1</th><th>TP 2</th><th>Nilai Akhir</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr><td class="text-start fw-bold">Matematika</td><td>85</td><td>90</td><td><span class="badge bg-success">88</span></td></tr>
+                                <tr><td class="text-start fw-bold">B. Indonesia</td><td>88</td><td>85</td><td><span class="badge bg-success">87</span></td></tr>
+                                <tr><td class="text-start fw-bold">IPA</td><td>80</td><td>82</td><td><span class="badge bg-success">81</span></td></tr>
+                            </tbody>
+                        </table>
+                        <div class="mt-3 text-center">
+                            <button class="btn btn-primary btn-sm w-100 rounded-pill">Cetak Rapor PDF</button>
                         </div>
                     </div>
                 </div>
             </div>
-        </section>
+        </div>
+    </section>
 
-        <!-- SECTION WORKFLOW - Ikon Berwarna -->
-        <section id="workflow" class="content-section bg-white">
-            <div class="container">
-                <div class="text-center">
-                    <h2 class="section-title">Alur Kerja Kolaboratif</h2>
-                    <p class="section-subtitle">Setiap peran memiliki tugas yang jelas dan terstruktur, menghasilkan rapor yang akurat dan komprehensif.</p>
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="row justify-content-between">
+                <div class="col-md-4 mb-4">
+                    <a class="d-flex align-items-center gap-2 text-decoration-none text-dark mb-3" href="#">
+                        <img src="<?php echo $logo_path; ?>" alt="Logo" height="30">
+                        <span class="fw-bold fs-5">Radig.</span>
+                    </a>
+                    <p class="text-muted small">
+                        Sistem Informasi Akademik dan Rapor Digital untuk <?php echo htmlspecialchars($nama_sekolah); ?>.
+                    </p>
                 </div>
-                <div class="row g-4">
-                    <div class="col-lg-3 d-flex align-items-stretch reveal" style="transition-delay: 0.1s;">
-                        <div class="workflow-card workflow-card-1">
-                            <div class="workflow-icon-bg">
-                                <i class="bi bi-person-gear workflow-icon"></i>
-                            </div>
-                            <h4 class="fw-bold">1. Admin</h4>
-                            <p class="text-muted">Mengelola data master (siswa, guru, kelas) dan menetapkan Guru Wali untuk setiap siswa baru.</p>
-                        </div>
-                    </div>
-                    <div class="col-lg-3 d-flex align-items-stretch reveal" style="transition-delay: 0.2s;">
-                        <div class="workflow-card workflow-card-2">
-                             <div class="workflow-icon-bg">
-                                <i class="bi bi-journal-text workflow-icon"></i>
-                            </div>
-                            <h4 class="fw-bold">2. Guru Mapel</h4>
-                            <p class="text-muted">Fokus menginput nilai sumatif per Tujuan Pembelajaran (TP) dan asesmen kokurikuler (projek).</p>
-                        </div>
-                    </div>
-                    <div class="col-lg-3 d-flex align-items-stretch reveal" style="transition-delay: 0.3s;">
-                        <div class="workflow-card workflow-card-3">
-                             <div class="workflow-icon-bg">
-                                <i class="bi bi-person-rolodex workflow-icon"></i>
-                            </div>
-                            <h4 class="fw-bold">3. Guru Wali</h4>
-                            <p class="text-muted">Mendampingi siswa, mengisi portofolio digital, dan berkomunikasi melalui chat secara berkelanjutan.</p>
-                        </div>
-                    </div>
-                     <div class="col-lg-3 d-flex align-items-stretch reveal" style="transition-delay: 0.4s;">
-                        <div class="workflow-card workflow-card-4">
-                             <div class="workflow-icon-bg">
-                                <i class="bi bi-person-check-fill workflow-icon"></i>
-                            </div>
-                            <h4 class="fw-bold">4. Wali Kelas</h4>
-                            <p class="text-muted">Melengkapi data absensi, catatan akhir semester, dan melakukan finalisasi sebelum rapor dicetak.</p>
-                        </div>
-                    </div>
+                <div class="col-md-4 text-md-end">
+                    <p class="text-muted small mb-0">&copy; <?php echo date('Y'); ?> <?php echo htmlspecialchars($nama_sekolah); ?>. All rights reserved.</p>
+                    <p class="text-muted small">Version 2.0.1</p>
                 </div>
             </div>
-        </section>
-
-        <!-- SECTION TESTIMONI BARU - Data Dinamis -->
-        <section id="testimoni" class="content-section">
-            <div class="container">
-                <div class="text-center mb-5">
-                    <h2 class="section-title">Apa Kata Pengguna?</h2>
-                    <!-- Judul personalisasi -->
-                    <p class="section-subtitle">Testimoni nyata dari guru dan siswa di <?php echo htmlspecialchars($nama_sekolah); ?>.</p>
-                </div>
-                <div class="row g-4 justify-content-center">
-                    <?php 
-                    $delay = 0;
-                    // Tampilkan maksimal 4 testimoni
-                    foreach (array_slice($testimonials, 0, 4) as $testi): 
-                        // Script fallback jika foto error
-                        $onerror_script = "this.onerror=null;this.src='" . $testi['fallback'] . "';";
-                    ?>
-                    <div class="col-md-6 col-lg-5 d-flex align-items-stretch reveal" style="transition-delay: <?php echo $delay; ?>s;">
-                        <div class="testimonial-card">
-                            <img src="<?php echo htmlspecialchars($testi['foto']); ?>" alt="<?php echo htmlspecialchars($testi['nama']); ?>" class="testimonial-img" onerror="<?php echo $onerror_script; ?>">
-                            <p class="quote">"<?php echo htmlspecialchars($testi['quote']); ?>"</p>
-                            <h5 class="name mb-0"><?php echo htmlspecialchars($testi['nama']); ?></h5>
-                            <span class="role"><?php echo htmlspecialchars($testi['role']); ?></span>
-                        </div>
-                    </div>
-                    <?php 
-                    $delay += 0.1;
-                    endforeach; 
-                    ?>
-                </div>
-            </div>
-        </section>
-    </main>
-    
-    <footer class="footer">
-        <div class="container text-center">
-            <p class="mb-0">&copy; <?php echo date('Y'); ?> Aplikasi Rapor Digital (Radig) | <?php echo htmlspecialchars($nama_sekolah); ?>
-                <!-- [BARU] Menampilkan Versi Aplikasi dari koneksi.php -->
-                <?php if(isset($APP_VERSION)) echo '<span class="badge bg-light text-dark ms-1">' . htmlspecialchars($APP_VERSION) . '</span>'; ?>
-            </p>
         </div>
     </footer>
 
-    <!-- Modal Login -->
-    <div class="modal fade" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
+    <!-- Modal Login Modern -->
+    <div class="modal fade" id="loginModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="loginModalLabel"><i class="bi bi-person-circle"></i> Login Pengguna</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-content shadow-lg">
+                <div class="modal-header border-0 justify-content-center text-center pb-0">
+                    <div>
+                        <div class="bg-white p-2 rounded-circle d-inline-block mb-2 shadow-sm">
+                            <img src="<?php echo $logo_path; ?>" width="50" alt="Logo">
+                        </div>
+                        <h5 class="modal-title fw-bold">Selamat Datang Kembali</h5>
+                        <p class="text-white-50 small mb-0">Silakan login untuk mengakses dashboard.</p>
+                    </div>
+                    <button type="button" class="btn-close position-absolute top-0 end-0 m-3 btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body pt-4">
                     <form action="proses_login.php" method="POST">
-                        <div class="mb-3">
-                            <label for="username" class="form-label">Username</label>
-                            <input type="text" class="form-control" id="username" name="username" required>
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="username" name="username" placeholder="NIP/NISN" required>
+                            <label for="username">Username (NIP / NISN)</label>
                         </div>
-                        <div class="mb-3">
-                            <label for="password" class="form-label">Password</label>
-                            <input type="password" class="form-control" id="password" name="password" required>
+                        <div class="form-floating mb-4">
+                            <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
+                            <label for="password">Password</label>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100">Login</button>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-grad btn-lg shadow-sm">Masuk Aplikasi</button>
+                        </div>
                     </form>
+                </div>
+                <div class="modal-footer justify-content-center border-0 bg-light py-3">
+                    <small class="text-muted">Lupa password? Hubungi Admin Sekolah.</small>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Script JS untuk Animasi dan Notifikasi -->
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script src="assets/js/sweetalert2.min.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Animasi untuk elemen saat di-scroll ke viewport
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.classList.add('active');
-                    }
-                });
-            }, { threshold: 0.1 });
+        // Init Animation
+        AOS.init({
+            once: true,
+            offset: 50,
+            duration: 800,
+        });
 
-            document.querySelectorAll('.reveal').forEach(el => {
-                observer.observe(el);
-            });
-
-            // Logika SweetAlert untuk notifikasi login
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.has('pesan')) {
-                const pesan = urlParams.get('pesan');
-                if (pesan === 'gagal') {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Login Gagal',
-                        text: 'Username atau password yang Anda masukkan salah.',
-                    });
-                } else if (pesan === 'logout') {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Logout Berhasil',
-                        text: 'Anda telah berhasil keluar dari sistem.',
-                    });
-                } else if (pesan === 'belum_login') {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Akses Ditolak',
-                        text: 'Anda harus login terlebih dahulu.',
-                    });
-                }
-                
-                // Membersihkan URL dari parameter 'pesan' agar tidak muncul lagi saat di-refresh
-                window.history.replaceState(null, null, window.location.pathname);
+        // Navbar Scroll Effect
+        window.addEventListener('scroll', function() {
+            if (window.scrollY > 50) {
+                document.querySelector('.navbar').classList.add('scrolled');
+            } else {
+                document.querySelector('.navbar').classList.remove('scrolled');
             }
         });
+
+        // SweetAlert Logic dari URL Param
+        const urlParams = new URLSearchParams(window.location.search);
+        const pesan = urlParams.get('pesan');
+        if (pesan) {
+            let title = '', text = '', icon = '';
+            if (pesan === 'gagal') {
+                title = 'Login Gagal'; text = 'Username atau password salah.'; icon = 'error';
+                // Auto open modal jika gagal login
+                var loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
+                loginModal.show();
+            } else if (pesan === 'logout') {
+                title = 'Berhasil Logout'; text = 'Sampai jumpa kembali!'; icon = 'success';
+            } else if (pesan === 'belum_login') {
+                title = 'Akses Ditolak'; text = 'Silakan login terlebih dahulu.'; icon = 'warning';
+            }
+
+            if(title) {
+                Swal.fire({ icon: icon, title: title, text: text, confirmButtonColor: '#4361ee' });
+                window.history.replaceState(null, null, window.location.pathname);
+            }
+        }
     </script>
 </body>
 </html>
